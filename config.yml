@@ -1,0 +1,7 @@
+# Configuration for scrapers
+
+# Graphy Assignment Scraper configuration
+graphy_assignment_scraper:
+  email: "your_email@example.com"
+  password: "your_password"
+  assignment_id: "65c5f301e4b051b50cfd6121"
