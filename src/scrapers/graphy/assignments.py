@@ -75,12 +75,31 @@ class GraphyAssignmentScraper:
 
     def write_to_csv(self, writer, data):
         for item in data:
-            name = f"{item.get('user', {}).get('fname', '')} {item.get('user', {}).get('lname', '')}".strip()
-            email = item.get('user', {}).get('email', '')
-            status = item.get('status', '')
-            submitted_on = item.get('createdDate', '')
-            answer_preview = str(item.get('data', ''))[:100]
-            writer.writerow([name, email, status, submitted_on, answer_preview])
+            user_info = item.get('user', {})
+            name = f"{user_info.get('fname', '')} {user_info.get('lname', '')}".strip()
+            email = user_info.get('email', '')
+            course_id = item.get('courseId', '')
+            overall_status = item.get('status', '')
+            
+            for submission in item.get('data', []):
+                date_iso = submission.get('date', {}).get('$date', '')
+                file_name = submission.get('fileName', '')
+                file_path = submission.get('filePath', '')
+                status = submission.get('status', '')
+                message = submission.get('message', '').replace('\n', ' ').strip()
+
+                writer.writerow([
+                    name,
+                    email,
+                    course_id,
+                    overall_status,
+                    date_iso,
+                    status,
+                    message,
+                    file_name,
+                    file_path
+                ])
+
 
     def run(self):
         self.login()
