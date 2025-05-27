@@ -1,17 +1,12 @@
 import asyncio
 import logging
 import yaml
-from src.scrapers.colleges import careers360
 from src.scrapers.graphy.assignments import GraphyAssignmentScraper
 
 def load_config():
     """Loads the .yml configuration file."""
     with open('config.yml', 'r') as file:
         return yaml.safe_load(file)
-
-def run_careers360_scraper(start_page, end_page):
-    """Run the Careers360 scraper."""
-    asyncio.run(careers360.main(start_page=start_page, end_page=end_page))
 
 def run_graphy_assignment_scraper(email, password, assignment_id):
     """Run the Graphy Assignment scraper."""
