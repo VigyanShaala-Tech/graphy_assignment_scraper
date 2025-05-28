@@ -175,32 +175,29 @@ class GraphyAssignmentScraper:
                 ])
 
     def run(self, assignment_id=None):
-        self.login()
-        if assignment_id == "meta":
-            # Only scrape metadata
-            assignments = self.fetch_assignments()
-            self.save_assignment_metadata(assignments)
-        elif assignment_id:
-            # Scrape submissions for this assignment id
-            output_file = os.path.join(self.output_dir, f"assignment_{assignment_id}_{self.timestamp}.csv")
-            logging.info(f"Scraping submissions for assignment {assignment_id}")
-            with open(output_file, "w", newline="", encoding="utf-8") as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow([
-                    'id', 'student_id', 'student_email', 'student_name', 'course_id', 'mentor_id', 'cohort_code',
-                    'submission_status', 'marks', 'feedback_comments',
-                    'submitted_at', 'file_name', 'assignment_file'
-                ])
-
-                start = 0
-                while True:
-                    data = self.fetch_submissions(assignment_id, start)
-                    if data is None or not data:
-                        break
-                    self.write_to_csv(writer, data)
-                    logging.info(f"Fetched {len(data)} submissions for assignment {assignment_id} (start={start})")
-                    start += 50
-
-            logging.info(f"Finished scraping assignment {assignment_id}. Saved to {output_file}")
-        else:
+        """Main execution method."""
+        if not assignment_id:
             logging.error("No assignment_id provided to run method.")
+            return
+
+        output_file = os.path.join(self.output_dir, f"assignment_{assignment_id}_{self.timestamp}.csv")
+        logging.info(f"Scraping submissions for assignment {assignment_id}")
+        
+        with open(output_file, "w", newline="", encoding="utf-8") as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow([
+                'id', 'student_id', 'student_email', 'student_name', 'course_id', 'mentor_id', 'cohort_code',
+                'submission_status', 'marks', 'feedback_comments',
+                'submitted_at', 'file_name', 'assignment_file'
+            ])
+
+            start = 0
+            while True:
+                data = self.fetch_submissions(assignment_id, start)
+                if data is None or not data:
+                    break
+                self.write_to_csv(writer, data)
+                logging.info(f"Fetched {len(data)} submissions for assignment {assignment_id} (start={start})")
+                start += 50
+
+        logging.info(f"Finished scraping assignment {assignment_id}. Saved to {output_file}")
