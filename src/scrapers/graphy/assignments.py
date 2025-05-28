@@ -1,20 +1,21 @@
 import os
 import csv
+import json
 import logging
 import requests
 from datetime import datetime
 
 class GraphyAssignmentScraper:
     LOGIN_URL = "https://mytribe.vigyanshaala.com/s/authenticate"
+    COURSE_ASSETS_API = "https://mytribe.vigyanshaala.com/s/courseassets"
     BASE_URL_TEMPLATE = "https://mytribe.vigyanshaala.com/s/assignments/{assignment_id}/submissions"
 
-    def __init__(self, email: str, password: str, assignment_id: str):
+    def __init__(self, email: str, password: str):
         self.email = email
         self.password = password
-        self.assignment_id = assignment_id
         self.session = requests.Session()
         self.output_dir = "output/graphy/assignments"
-        self.output_file = f"{self.output_dir}/assignment_submissions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        self.timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         os.makedirs("logs", exist_ok=True)
         os.makedirs(self.output_dir, exist_ok=True)
         self.setup_logging()
@@ -49,10 +50,82 @@ class GraphyAssignmentScraper:
             logging.error(f"Login failed with status code {response.status_code}")
             raise Exception("Login failed")
 
-    def fetch_submissions(self, start: int, length: int = 50):
+    def fetch_assignments(self) -> list:
+        """Fetch all assignment objects from the course assets table."""
+        assignments = []
+        start = 0
+        length = 100
+        while True:
+            params = {
+                "draw": 1,
+                "start": start,
+                "length": length,
+                "search[value]": "",
+                "search[regex]": "false",
+                "queries": '{"spayee:resource.spayee:courseAssetType":"assignment","reviewCount":true}',
+                "timezoneOffset": -330,
+                "sortBy": "reviewCount.underreview",
+                "sortDir": -1
+            }
+            headers = {
+                "User-Agent": "Mozilla/5.0",
+                "Accept": "application/json",
+                "Referer": "https://mytribe.vigyanshaala.com/s/courseassets",
+                "X-Requested-With": "XMLHttpRequest"
+            }
+
+            try:
+                response = self.session.get(self.COURSE_ASSETS_API, headers=headers, params=params)
+                response.raise_for_status()
+                data = response.json().get("data", [])
+                if not data:
+                    break
+                assignments.extend(data)
+                start += length
+            except Exception as e:
+                logging.error(f"Failed to fetch assignments: {e}")
+                break
+
+        logging.info(f"Fetched {len(assignments)} total assignments.")
+        return assignments
+
+    def save_assignment_metadata(self, assignments: list):
+        """Save all assignment metadata into a CSV file and raw JSON file."""
+        output_file = os.path.join(self.output_dir, f"all_assignments_metadata_{self.timestamp}.csv")
+        with open(output_file, "w", newline="", encoding="utf-8") as csvfile:
+            writer = csv.writer(csvfile)
+            headers = ['_id', 'title', 'courseId', 'courseTitle', 'courseAssetType', 'createdAt', 'updatedAt',
+                    'createdById', 'createdByName', 'createdByEmail', 'reviewed', 'rejected', 'underReview']
+            writer.writerow(headers)
+            for item in assignments:
+                writer.writerow([
+                    item.get('_id', ''),
+                    item.get('spayee:resource', {}).get('spayee:title', ''),
+                    # courses is a list; take first course's _id and title if available
+                    item.get('courses', [{}])[0].get('_id', ''),
+                    item.get('courses', [{}])[0].get('spayee:resource', {}).get('spayee:title', ''),
+                    item.get('spayee:resource', {}).get('spayee:courseAssetType', ''),
+                    item.get('createdDate', {}).get('$date', ''),
+                    item.get('modifiedDate', {}).get('$date', ''),
+                    item.get('createdBy', {}).get('_id', ''),
+                    item.get('createdBy', {}).get('fname', ''),
+                    item.get('createdBy', {}).get('email', ''),
+                    item.get('reviewCount', {}).get('reviewed', 0),
+                    item.get('reviewCount', {}).get('rejected', 0),
+                    item.get('reviewCount', {}).get('underreview', 0),
+                ])
+        logging.info(f"Assignment metadata saved to: {output_file}")
+
+        # Also save raw JSON if needed
+        json_file = os.path.join(self.output_dir, f"all_assignments_metadata_{self.timestamp}.json")
+        with open(json_file, "w", encoding="utf-8") as f:
+            json.dump(assignments, f, indent=2, ensure_ascii=False)
+        logging.info(f"Raw JSON metadata saved to: {json_file}")
+
+    def fetch_submissions(self, assignment_id: str, start: int, length: int = 50):
         headers = {
             "User-Agent": "Mozilla/5.0",
-            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "Accept": "application/json",
             "Referer": "https://mytribe.vigyanshaala.com/s/assignments",
             "X-Requested-With": "XMLHttpRequest"
         }
@@ -64,37 +137,28 @@ class GraphyAssignmentScraper:
             "search[regex]": "false",
             "queries": "{}"
         }
-        url = self.BASE_URL_TEMPLATE.format(assignment_id=self.assignment_id)
+        url = self.BASE_URL_TEMPLATE.format(assignment_id=assignment_id)
         try:
             response = self.session.get(url, headers=headers, params=params)
             response.raise_for_status()
             return response.json().get("data", [])
         except Exception as e:
-            logging.error(f"Error fetching data for start={start}: {e}")
+            logging.error(f"Error fetching submissions for {assignment_id} (start={start}): {e}")
             return None
 
     def write_to_csv(self, writer, data):
-        
-        # Header row for your database-compatible CSV
-        writer.writerow([
-            'id','student_id','student_email','student_name', 'course_id', 'mentor_id', 'cohort_code',
-            'submission_status', 'marks', 'feedback_comments',
-            'submitted_at', 'file_name','assignment_file'
-        ])
-
         for item in data:
-            
-            id = item.get('_id') 
-            student_id = item.get('user', {}).get('_id') 
-            student_email = item.get('user', {}).get('email') 
-            student_name = item.get('user', {}).get('fname') 
-            course_id = item.get('courseId')  # Assuming courseId maps to resource
-            mentor_id = item.get('data', [{}])[-1].get('adminId')  # Latest adminId if present
-            cohort_code = None  # Not in JSON, placeholder or look up elsewhere
+            id = item.get('_id')
+            student_id = item.get('user', {}).get('_id')
+            student_email = item.get('user', {}).get('email')
+            student_name = item.get('user', {}).get('fname')
+            course_id = item.get('courseId')
+            mentor_id = item.get('data', [{}])[-1].get('adminId') if item.get('data') else None
+            cohort_code = None  # Placeholder
 
             for submission in item.get('data', []):
-                submission_status = submission.get('status', 'under-review')
-                marks = None  # Not in JSON; could be filled later
+                submission_status = submission.get('status', '')
+                marks = submission.get('marks', '')
                 feedback = submission.get('message', '').replace('\n', ' ').strip()
                 submitted_at = submission.get('date', {}).get('$date')
                 file_name = submission.get('fileName', '')
@@ -116,24 +180,33 @@ class GraphyAssignmentScraper:
                     assignment_file
                 ])
 
-    def run(self):
+    def run(self, assignment_id=None):
         self.login()
-        start = 0
-        length = 50
+        if assignment_id == "meta":
+            # Only scrape metadata
+            assignments = self.fetch_assignments()
+            self.save_assignment_metadata(assignments)
+        elif assignment_id:
+            # Scrape submissions for this assignment id
+            output_file = os.path.join(self.output_dir, f"assignment_{assignment_id}_{self.timestamp}.csv")
+            logging.info(f"Scraping submissions for assignment {assignment_id}")
+            with open(output_file, "w", newline="", encoding="utf-8") as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow([
+                    'id', 'student_id', 'student_email', 'student_name', 'course_id', 'mentor_id', 'cohort_code',
+                    'submission_status', 'marks', 'feedback_comments',
+                    'submitted_at', 'file_name', 'assignment_file'
+                ])
 
-        with open(self.output_file, "w", newline="", encoding="utf-8") as csvfile:
-            writer = csv.writer(csvfile)
-            
-            while True:
-                data = self.fetch_submissions(start, length)
-                if data is None:
-                    logging.error("Stopping due to fetch error.")
-                    break
-                if not data:
-                    logging.info("No more data found. Scraping complete.")
-                    break
-                self.write_to_csv(writer, data)
-                logging.info(f"Fetched and saved {len(data)} records from start={start}")
-                start += length
+                start = 0
+                while True:
+                    data = self.fetch_submissions(assignment_id, start)
+                    if data is None or not data:
+                        break
+                    self.write_to_csv(writer, data)
+                    logging.info(f"Fetched {len(data)} submissions for assignment {assignment_id} (start={start})")
+                    start += 50
 
-        logging.info(f"All data saved to {self.output_file}")
+            logging.info(f"Finished scraping assignment {assignment_id}. Saved to {output_file}")
+        else:
+            logging.error("No assignment_id provided to run method.")

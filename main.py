@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import yaml
 from src.scrapers.graphy.assignments import GraphyAssignmentScraper
@@ -9,24 +8,19 @@ def load_config():
         return yaml.safe_load(file)
 
 def run_graphy_assignment_scraper(email, password, assignment_id):
-    """Run the Graphy Assignment scraper."""
-    try:
-        scraper = GraphyAssignmentScraper(email, password, assignment_id)
-        scraper.run()
-    except Exception as e:
-        logging.error(f"Scraper terminated with error: {e}")
+    scraper = GraphyAssignmentScraper(email, password)
+    if assignment_id == "meta":
+        # Only scrape and save assignment metadata
+        scraper.login()
+        assignments = scraper.fetch_assignments()
+        scraper.save_assignment_metadata(assignments)
+        logging.info("Metadata scraping completed.")
+    else:
+        # Scrape submissions for the given assignment id
+        scraper.run(assignment_id)
 
 if __name__ == "__main__":
-    # Load the configuration file
+    logging.basicConfig(level=logging.INFO)
     config = load_config()
-
-    scraper = 1  
-    
-    if scraper == 1:
-        # Use Graphy Assignment Scraper
-        email = config['graphy_assignment_scraper']['email']
-        password = config['graphy_assignment_scraper']['password']
-        assignment_id = config['graphy_assignment_scraper']['assignment_id']
-        run_graphy_assignment_scraper(email, password, assignment_id)
-    else:
-        logging.error("Invalid scraper selection.")
+    cfg = config['graphy_assignment_scraper']
+    run_graphy_assignment_scraper(cfg['email'], cfg['password'], cfg['assignment_id'])
