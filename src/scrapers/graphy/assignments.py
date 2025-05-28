@@ -77,14 +77,14 @@ class GraphyAssignmentScraper:
         
         # Header row for your database-compatible CSV
         writer.writerow([
-            'submission_id', 'student_id','student_email','student_name', 'course_id', 'mentor_id', 'cohort_code',
+            'id','student_id','student_email','student_name', 'course_id', 'mentor_id', 'cohort_code',
             'submission_status', 'marks', 'feedback_comments',
             'submitted_at', 'file_name','assignment_file'
         ])
 
         for item in data:
             
-            submission_id = item.get('_id') 
+            id = item.get('_id') 
             student_id = item.get('user', {}).get('_id') 
             student_email = item.get('user', {}).get('email') 
             student_name = item.get('user', {}).get('fname') 
@@ -101,7 +101,7 @@ class GraphyAssignmentScraper:
                 assignment_file = submission.get('filePath', '')
 
                 writer.writerow([
-                    submission_id,
+                    id,
                     student_id,
                     student_email,
                     student_name,
