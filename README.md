@@ -56,7 +56,7 @@ graphy_assignment_scraper:
 Install dependencies:
 
 ```bash
-pip install requests pyyaml
+pip install -r requirements.txt
 ```
 
 ### ▶️ Run the scraper
