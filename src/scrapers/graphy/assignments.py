@@ -74,32 +74,36 @@ class GraphyAssignmentScraper:
             return None
 
     def write_to_csv(self, writer, data):
+        submission_id = 1 
+        
         for item in data:
-            user_info = item.get('user', {})
-            name = f"{user_info.get('fname', '')} {user_info.get('lname', '')}".strip()
-            email = user_info.get('email', '')
-            course_id = item.get('courseId', '')
-            overall_status = item.get('status', '')
-            
+            student_id = item.get('user', {}).get('_id')  # This may need mapping to actual student DB id
+            resource_id = item.get('courseId')  # Assuming courseId maps to resource
+            mentor_id = item.get('data', [{}])[-1].get('adminId')  # Latest adminId if present
+            cohort_code = None  # Not in JSON, placeholder or look up elsewhere
+
             for submission in item.get('data', []):
-                date_iso = submission.get('date', {}).get('$date', '')
+                submission_status = submission.get('status', 'under-review')
+                marks = None  # Not in JSON; could be filled later
+                feedback = submission.get('message', '').replace('\n', ' ').strip()
+                submitted_at = submission.get('date', {}).get('$date')
                 file_name = submission.get('fileName', '')
-                file_path = submission.get('filePath', '')
-                status = submission.get('status', '')
-                message = submission.get('message', '').replace('\n', ' ').strip()
+                assignment_file = submission.get('filePath', '')
 
                 writer.writerow([
-                    name,
-                    email,
-                    course_id,
-                    overall_status,
-                    date_iso,
-                    status,
-                    message,
+                    submission_id,
+                    student_id,
+                    resource_id,
+                    mentor_id,
+                    cohort_code,
+                    submission_status,
+                    marks,
+                    feedback,
+                    submitted_at,
                     file_name,
-                    file_path
+                    assignment_file
                 ])
-
+                submission_id += 1
 
     def run(self):
         self.login()
@@ -108,8 +112,13 @@ class GraphyAssignmentScraper:
 
         with open(self.output_file, "w", newline="", encoding="utf-8") as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(["Learner Name", "Email", "Status", "Submission Date", "Answer Preview"])
-
+            # Header row for your database-compatible CSV
+            writer.writerow([
+                'id', 'student_id', 'resource_id', 'mentor_id', 'cohort_code',
+                'submission_status', 'marks', 'feedback_comments',
+                'submitted_at', 'file_name','assignment_file'
+            ])
+            
             while True:
                 data = self.fetch_submissions(start, length)
                 if data is None:
