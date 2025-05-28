@@ -140,7 +140,65 @@ class GraphyAssignmentScraper:
             logging.error(f"Error fetching submissions for {assignment_id} (start={start}): {e}")
             return None
 
-    def write_to_csv(self, writer, data):
+    def run(self, assignment_id=None):
+        """Main execution method for a single assignment."""
+        if not assignment_id:
+            logging.error("No assignment_id provided to run method.")
+            return
+
+        output_file = os.path.join(self.output_dir, f"assignment_{assignment_id}_{self.timestamp}.csv")
+        logging.info(f"Scraping submissions for assignment {assignment_id}")
+        
+        with open(output_file, "w", newline="", encoding="utf-8") as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow([
+                'assignment_id', 'id', 'student_id', 'student_email', 'student_name', 'course_id', 'mentor_id', 'cohort_code',
+                'submission_status', 'marks', 'feedback_comments',
+                'submitted_at', 'file_name', 'assignment_file'
+            ])
+
+            start = 0
+            while True:
+                data = self.fetch_submissions(assignment_id, start)
+                if data is None or not data:
+                    break
+                self.write_to_csv(writer, data, assignment_id)
+                logging.info(f"Fetched {len(data)} submissions for assignment {assignment_id} (start={start})")
+                start += 50
+
+        logging.info(f"Finished scraping assignment {assignment_id}. Saved to {output_file}")
+
+    def run_multiple(self, assignment_ids):
+        """Main execution method for multiple assignments."""
+        if not assignment_ids:
+            logging.error("No assignment_ids provided to run_multiple method.")
+            return
+
+        output_file = os.path.join(self.output_dir, f"multiple_assignments_{self.timestamp}.csv")
+        logging.info(f"Scraping submissions for {len(assignment_ids)} assignments")
+        
+        with open(output_file, "w", newline="", encoding="utf-8") as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow([
+                'assignment_id', 'id', 'student_id', 'student_email', 'student_name', 'course_id', 'mentor_id', 'cohort_code',
+                'submission_status', 'marks', 'feedback_comments',
+                'submitted_at', 'file_name', 'assignment_file'
+            ])
+
+            for assignment_id in assignment_ids:
+                logging.info(f"Processing assignment {assignment_id}")
+                start = 0
+                while True:
+                    data = self.fetch_submissions(assignment_id, start)
+                    if data is None or not data:
+                        break
+                    self.write_to_csv(writer, data, assignment_id)
+                    logging.info(f"Fetched {len(data)} submissions for assignment {assignment_id} (start={start})")
+                    start += 50
+
+        logging.info(f"Finished scraping all assignments. Saved to {output_file}")
+
+    def write_to_csv(self, writer, data, assignment_id):
         for item in data:
             id = item.get('_id')
             student_id = item.get('user', {}).get('_id')
@@ -159,6 +217,7 @@ class GraphyAssignmentScraper:
                 assignment_file = submission.get('filePath', '')
 
                 writer.writerow([
+                    assignment_id,
                     id,
                     student_id,
                     student_email,
@@ -173,31 +232,3 @@ class GraphyAssignmentScraper:
                     file_name,
                     assignment_file
                 ])
-
-    def run(self, assignment_id=None):
-        """Main execution method."""
-        if not assignment_id:
-            logging.error("No assignment_id provided to run method.")
-            return
-
-        output_file = os.path.join(self.output_dir, f"assignment_{assignment_id}_{self.timestamp}.csv")
-        logging.info(f"Scraping submissions for assignment {assignment_id}")
-        
-        with open(output_file, "w", newline="", encoding="utf-8") as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow([
-                'id', 'student_id', 'student_email', 'student_name', 'course_id', 'mentor_id', 'cohort_code',
-                'submission_status', 'marks', 'feedback_comments',
-                'submitted_at', 'file_name', 'assignment_file'
-            ])
-
-            start = 0
-            while True:
-                data = self.fetch_submissions(assignment_id, start)
-                if data is None or not data:
-                    break
-                self.write_to_csv(writer, data)
-                logging.info(f"Fetched {len(data)} submissions for assignment {assignment_id} (start={start})")
-                start += 50
-
-        logging.info(f"Finished scraping assignment {assignment_id}. Saved to {output_file}")

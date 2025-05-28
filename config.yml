@@ -4,5 +4,10 @@
 graphy_assignment_scraper:
   email: "your_email@example.com"
   password: "your_password"
-  assignment_id: "meta" 
-  # assignment_id: "65c5f301e4b051b50cfd6121"
+  # assignment_id: "meta" 
+  assignment_id: 
+    - "67ac42592413734ddbf532f6"
+    - "67ac40d146c5d24ad783e876"
+    - "67ac4ecdeca28c2919760bb8"
+    - "67ac438e9958f50ef5960ed7"
+  # You can add more assignment IDs as needed

@@ -7,18 +7,22 @@ def load_config():
     with open('config.yml', 'r') as file:
         return yaml.safe_load(file)
 
-def run_graphy_assignment_scraper(email, password, assignment_id):
+def run_graphy_assignment_scraper(email, password, assignment_ids):
     scraper = GraphyAssignmentScraper(email, password)
     scraper.login()
     
-    if assignment_id == "meta":
+    if isinstance(assignment_ids, str) and assignment_ids == "meta":
         # Only scrape and save assignment metadata
         assignments = scraper.fetch_assignments()
         scraper.save_assignment_metadata(assignments)
         logging.info("Metadata scraping completed.")
     else:
-        # Scrape submissions for the given assignment id
-        scraper.run(assignment_id)
+        # Convert single assignment_id to list if it's not already
+        if isinstance(assignment_ids, str):
+            assignment_ids = [assignment_ids]
+        
+        # Scrape submissions for all given assignment ids
+        scraper.run_multiple(assignment_ids)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
