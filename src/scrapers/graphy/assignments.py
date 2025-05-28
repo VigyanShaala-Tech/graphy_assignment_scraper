@@ -74,11 +74,21 @@ class GraphyAssignmentScraper:
             return None
 
     def write_to_csv(self, writer, data):
-        submission_id = 1 
         
+        # Header row for your database-compatible CSV
+        writer.writerow([
+            'submission_id', 'student_id','student_email','student_name', 'course_id', 'mentor_id', 'cohort_code',
+            'submission_status', 'marks', 'feedback_comments',
+            'submitted_at', 'file_name','assignment_file'
+        ])
+
         for item in data:
-            student_id = item.get('user', {}).get('_id')  # This may need mapping to actual student DB id
-            resource_id = item.get('courseId')  # Assuming courseId maps to resource
+            
+            submission_id = item.get('_id') 
+            student_id = item.get('user', {}).get('_id') 
+            student_email = item.get('user', {}).get('email') 
+            student_name = item.get('user', {}).get('fname') 
+            course_id = item.get('courseId')  # Assuming courseId maps to resource
             mentor_id = item.get('data', [{}])[-1].get('adminId')  # Latest adminId if present
             cohort_code = None  # Not in JSON, placeholder or look up elsewhere
 
@@ -93,7 +103,9 @@ class GraphyAssignmentScraper:
                 writer.writerow([
                     submission_id,
                     student_id,
-                    resource_id,
+                    student_email,
+                    student_name,
+                    course_id,
                     mentor_id,
                     cohort_code,
                     submission_status,
@@ -103,7 +115,6 @@ class GraphyAssignmentScraper:
                     file_name,
                     assignment_file
                 ])
-                submission_id += 1
 
     def run(self):
         self.login()
@@ -112,12 +123,6 @@ class GraphyAssignmentScraper:
 
         with open(self.output_file, "w", newline="", encoding="utf-8") as csvfile:
             writer = csv.writer(csvfile)
-            # Header row for your database-compatible CSV
-            writer.writerow([
-                'id', 'student_id', 'resource_id', 'mentor_id', 'cohort_code',
-                'submission_status', 'marks', 'feedback_comments',
-                'submitted_at', 'file_name','assignment_file'
-            ])
             
             while True:
                 data = self.fetch_submissions(start, length)
