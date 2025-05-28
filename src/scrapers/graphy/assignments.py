@@ -116,12 +116,6 @@ class GraphyAssignmentScraper:
                 ])
         logging.info(f"Assignment metadata saved to: {output_file}")
 
-        # Also save raw JSON if needed
-        json_file = os.path.join(self.output_dir, f"all_assignments_metadata_{self.timestamp}.json")
-        with open(json_file, "w", encoding="utf-8") as f:
-            json.dump(assignments, f, indent=2, ensure_ascii=False)
-        logging.info(f"Raw JSON metadata saved to: {json_file}")
-
     def fetch_submissions(self, assignment_id: str, start: int, length: int = 50):
         headers = {
             "User-Agent": "Mozilla/5.0",
