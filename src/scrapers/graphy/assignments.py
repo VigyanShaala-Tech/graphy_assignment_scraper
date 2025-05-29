@@ -202,7 +202,10 @@ class GraphyAssignmentScraper:
         for item in data:
             id = item.get('_id')
             student_id = item.get('user', {}).get('_id')
-            student_email = item.get('user', {}).get('email')
+            # Remove the prefix from email if it exists
+            student_email = item.get('user', {}).get('email', '')
+            if student_email and student_email.startswith('vigyanshaalainternational1617-'):
+                student_email = student_email.replace('vigyanshaalainternational1617-', '')
             student_name = item.get('user', {}).get('fname')
             course_id = item.get('courseId')
             mentor_id = item.get('data', [{}])[-1].get('adminId') if item.get('data') else None
