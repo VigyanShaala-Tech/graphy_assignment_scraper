@@ -21,6 +21,7 @@ def merge_and_upload_data():
         # NOTE: Update the scraper_csv_path with the correct timestamp after running the scraper
         scraper_csv_path = r"D:\graphy_assignment_scraper\output\graphy\assignments\multiple_assignments_20250530_111403.csv"
         excel_path = r"D:\graphy_assignment_scraper\output\TSTT 7.0.xlsx"
+        metadata_csv_path = r"D:\graphy_assignment_scraper\output\graphy\assignments\all_assignments_metadata_20250530_121927.csv"  # Updated metadata path
         output_csv_path = "output/graphy/assignments/merged_assignment_submissions.csv"
 
         # Ensure output directory exists
@@ -31,6 +32,28 @@ def merge_and_upload_data():
         # Using keep_default_na=False to prevent pandas from interpreting empty strings as NaN
         scraper_df = pd.read_csv(scraper_csv_path, keep_default_na=False)
         excel_df = pd.read_excel(excel_path, keep_default_na=False)
+        metadata_df = pd.read_csv(metadata_csv_path, keep_default_na=False) # Load metadata
+
+        ######################## Map Assignment ID and Name #####################################
+        logger.info("Mapping Assignment IDs and Names...")
+        
+        # Rename _id to assignment_id in metadata for merging
+        metadata_df = metadata_df.rename(columns={'_id': 'assignment_id'})
+        
+        # Merge to get assignment names
+        scraper_df = pd.merge(
+            scraper_df,
+            metadata_df[['assignment_id', 'title']],
+            on='assignment_id',
+            how='left'
+        )
+        
+        # Rename title to assignment_name
+        scraper_df = scraper_df.rename(columns={'title': 'assignment_name'})
+        
+        # Log the total number of assignments mapped
+        logger.info(f"Total assignments mapped: {len(metadata_df)}")
+        #######################################################################################
 
         # Merge only the needed columns from Excel into the scraper data
         logger.info("Merging data...")
