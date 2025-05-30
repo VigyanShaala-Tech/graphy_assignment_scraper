@@ -180,7 +180,7 @@ class GraphyAssignmentScraper:
         with open(output_file, "w", newline="", encoding="utf-8") as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow([
-                'assignment_id', 'id', 'student_id', 'student_email', 'student_name', 'course_id', 'mentor_id', 'cohort_code',
+                'assignment_id', 'id', 'student_id', 'Email', 'student_name', 'course_id', 'mentor_id', 'cohort_code',
                 'submission_status', 'marks', 'feedback_comments',
                 'submitted_at', 'file_name', 'assignment_file'
             ])
