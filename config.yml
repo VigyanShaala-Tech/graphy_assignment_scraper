@@ -1,5 +1,11 @@
 # Configuration for scrapers
 
+# Mode configuration
+# Available modes:
+# - scrape-only: Only scrapes assignments without merging and uploading
+# - scrape-and-upload: Scrapes assignments and performs merge and upload process
+mode: "scrape-and-upload"
+
 # Graphy Assignment Scraper configuration
 graphy_assignment_scraper:
   email: "your_email@example.com"
@@ -11,3 +17,10 @@ graphy_assignment_scraper:
     - "67ac4ecdeca28c2919760bb8"
     - "67ac438e9958f50ef5960ed7"
   # You can add more assignment IDs as needed
+
+# Supabase configuration
+supabase:
+  url: "https://your-project-id.supabase.co"
+  key: "your-supabase-service-key"
+  table: "your_table_name"
+  schema: "public"  # optional, default is "public"
