@@ -1,6 +1,7 @@
 import logging
 import yaml
 from src.scrapers.graphy.assignments import GraphyAssignmentScraper
+from src.data_merger_and_supabase_uploader import merge_and_upload_data
 
 def load_config():
     """Loads the .yml configuration file."""
@@ -24,8 +25,23 @@ def run_graphy_assignment_scraper(email, password, assignment_ids):
         # Scrape submissions for all given assignment ids
         scraper.run_multiple(assignment_ids)
 
-if __name__ == "__main__":
+def main():
     logging.basicConfig(level=logging.INFO)
     config = load_config()
+    
+    # Get the mode from config
+    mode = config.get('mode', 'scrape-and-upload')
+    
+    # Run the scraper
     cfg = config['graphy_assignment_scraper']
     run_graphy_assignment_scraper(cfg['email'], cfg['password'], cfg['assignment_id'])
+    
+    # If mode is scrape-and-upload, run the merger and uploader
+    if mode == 'scrape-and-upload':
+        logging.info("Starting data merge and Supabase upload process...")
+        merge_and_upload_data()
+    else:
+        logging.info("Running in scrape-only mode. Skipping merge and upload process.")
+
+if __name__ == "__main__":
+    main()

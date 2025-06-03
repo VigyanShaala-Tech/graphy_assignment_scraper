@@ -2,7 +2,12 @@ import pandas as pd
 import logging
 from datetime import datetime
 import os
-from supabase_integration import SupabaseUploader
+from src.supabase_integration import SupabaseUploader
+import yaml
+import glob
+
+# Create logs directory if it doesn't exist
+os.makedirs('logs', exist_ok=True)
 
 # Setup logging
 logging.basicConfig(
@@ -15,14 +20,41 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+def load_config():
+    """Load configuration from config.yml"""
+    with open('config.yml', 'r') as file:
+        return yaml.safe_load(file)
+
+def get_latest_file(pattern):
+    """Get the most recent file matching the pattern"""
+    files = glob.glob(pattern)
+    if not files:
+        logger.warning(f"No files found matching pattern: {pattern}")
+        return None
+    return max(files, key=os.path.getctime)
+
 def merge_and_upload_data():
     try:
-        # File paths
-        # NOTE: Update the scraper_csv_path with the correct timestamp after running the scraper
-        scraper_csv_path = r"D:\graphy_assignment_scraper\output\graphy\assignments\multiple_assignments_20250530_111403.csv"
-        excel_path = r"D:\graphy_assignment_scraper\output\TSTT 7.0.xlsx"
-        metadata_csv_path = r"D:\graphy_assignment_scraper\output\graphy\assignments\all_assignments_metadata_20250530_121927.csv"  # Updated metadata path
+        # Load configuration
+        config = load_config()
+        mode = config.get('mode', 'scrape-and-upload')  # Default to scrape-and-upload if not specified
+        
+        # Get the latest files
+        scraper_csv_path = get_latest_file("output/graphy/assignments/multiple_assignments_*.csv")
+        metadata_csv_path = get_latest_file("output/graphy/assignments/all_assignments_metadata_*.csv")
+        excel_path = "output/TSTT 7.0.xlsx"
         output_csv_path = "output/graphy/assignments/merged_assignment_submissions.csv"
+
+        if not scraper_csv_path:
+            raise FileNotFoundError("No scraper CSV files found. Please run the scraper first.")
+
+        logger.info(f"Using scraper CSV: {scraper_csv_path}")
+        logger.info(f"Using Excel file: {excel_path}")
+
+        # If mode is scrape-only, exit after scraping
+        if mode == 'scrape-only':
+            logger.info("Running in scrape-only mode. Skipping merge and upload process.")
+            return
 
         # Ensure output directory exists
         os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
@@ -32,28 +64,31 @@ def merge_and_upload_data():
         # Using keep_default_na=False to prevent pandas from interpreting empty strings as NaN
         scraper_df = pd.read_csv(scraper_csv_path, keep_default_na=False)
         excel_df = pd.read_excel(excel_path, keep_default_na=False)
-        metadata_df = pd.read_csv(metadata_csv_path, keep_default_na=False) # Load metadata
 
-        ######################## Map Assignment ID and Name #####################################
-        logger.info("Mapping Assignment IDs and Names...")
-        
-        # Rename _id to assignment_id in metadata for merging
-        metadata_df = metadata_df.rename(columns={'_id': 'assignment_id'})
-        
-        # Merge to get assignment names
-        scraper_df = pd.merge(
-            scraper_df,
-            metadata_df[['assignment_id', 'title']],
-            on='assignment_id',
-            how='left'
-        )
-        
-        # Rename title to assignment_name
-        scraper_df = scraper_df.rename(columns={'title': 'assignment_name'})
-        
-        # Log the total number of assignments mapped
-        logger.info(f"Total assignments mapped: {len(metadata_df)}")
-        #######################################################################################
+        # If metadata file exists, use it for assignment names
+        if metadata_csv_path:
+            logger.info(f"Using metadata CSV: {metadata_csv_path}")
+            metadata_df = pd.read_csv(metadata_csv_path, keep_default_na=False)
+            
+            # Rename _id to assignment_id in metadata for merging
+            metadata_df = metadata_df.rename(columns={'_id': 'assignment_id'})
+            
+            # Merge to get assignment names
+            scraper_df = pd.merge(
+                scraper_df,
+                metadata_df[['assignment_id', 'title']],
+                on='assignment_id',
+                how='left'
+            )
+            
+            # Rename title to assignment_name
+            scraper_df = scraper_df.rename(columns={'title': 'assignment_name'})
+            
+            # Log the total number of assignments mapped
+            logger.info(f"Total assignments mapped: {len(metadata_df)}")
+        else:
+            logger.warning("No metadata file found. Assignment names will not be included.")
+            scraper_df['assignment_name'] = 'Unknown'  # Add a default assignment name
 
         # Merge only the needed columns from Excel into the scraper data
         logger.info("Merging data...")

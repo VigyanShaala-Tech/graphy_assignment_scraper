@@ -1,5 +1,11 @@
 # Configuration for scrapers
 
+# Mode configuration
+# Available modes:
+# - scrape-only: Only scrapes assignments without merging and uploading
+# - scrape-and-upload: Scrapes assignments and performs merge and upload process
+mode: "scrape-and-upload"
+
 # Graphy Assignment Scraper configuration
 graphy_assignment_scraper:
   email: "your_email@example.com"
